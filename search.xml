@@ -4,6 +4,35 @@
   
     
     <entry>
+      <title>CVPR2021 安全AI挑战者计划第六期赛道2：ImageNet无限制对抗攻击 TOP 2 比赛思路</title>
+      <link href="/Blog/2021/04/25/tianchi2021top2/"/>
+      <url>/Blog/2021/04/25/tianchi2021top2/</url>
+      
+        <content type="html"><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="/Blog/assets/css/APlayer.min.css"><script src="/Blog/assets/js/APlayer.min.js" class="aplayer-secondary-script-marker"></script><script class="meting-secondary-script-marker" src="/Blog/assets/js/Meting.min.js"></script><div align="center"><font size="6">CVPR2021 安全AI挑战者计划第六期赛道2：ImageNet无限制对抗攻击 TOP 2 比赛思路</font></div><h2 id="背景介绍"><a href="#背景介绍" class="headerlink" title="背景介绍"></a>背景介绍</h2><p>深度神经网络在图像识别、自动驾驶和医学图像分析等领域得到广泛的应用。然而，深度神经网络在实际应用中面临诸多问题，最近的研究表明，深度神经网络非常容易受到对抗样本的攻击。现在研究主要关注的是p-范数下的攻击和防御，但是p-范数的扰动需要控制其扰动量来确保人眼无法察觉。而实际场景中，深度模型遇到的更多威胁来自于非限制扰动对抗样本，即攻击者在图像上进行大范围且可见的修改，使得模型误识别的同时不影响人的正常观察。</p><h2 id="赛题分析"><a href="#赛题分析" class="headerlink" title="赛题分析"></a>赛题分析</h2><p>1.由于比赛是无限制对抗攻击，没有对图像修改程度做出严格限定，但是图像质量和黑盒攻击的成功率之间存在平衡性问题。<br>2.传统的扰动方法在人眼观察下，具有较明显的差别，需要寻找新的思路解决这一问题。<br>3.比赛无法通过query的方式获取到黑盒模型的任何信息，对攻击的有效性提出了更高的挑战。</p><h2 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h2><p>在图像质量的评估上，人眼对高频信息的变化不敏感，而对低频信息的变化较为敏感，考虑将扰动转换到频域上，提升图像质量。傅里叶变换可以将图像从空间域转换到频域，有助于对信号不同频域信息的解耦，增强对图像质量的控制。</p><h2 id="训练技巧"><a href="#训练技巧" class="headerlink" title="训练技巧"></a>训练技巧</h2><p>1.在低频信号上设置更严格的修改限制，在高频信号上设置更宽松的限制，采用不同的学习步长进行优化。<br>2.CW损失函数[1]在表现上比cross-entropy损失函数更有优势。<br>3.引入适当的data augmentation的策略，这一策略主要参考DIM[2]在迁移性上所做出的改进。<br>4.没有使用FID[3]和LPIPS[4]指标作为损失函数的一部分，主要考虑到最后的评判标准是人眼，单纯拟合客观分帮助不是很明显，但是本方法的优点在于图像质量可以通过对不同频段信息的修改进行控制，所以可以通过参数调整，获得较高的图像质量。<br>5.为了提升模型在黑盒上的攻击能力，我们使用了ensemble方法将efficientnet[5]、vit[6]和resnest[7]等模型结合起来，在ensemble适量模型之后，黑盒的攻击能力有所提升。</p><h2 id="样本展示"><a href="#样本展示" class="headerlink" title="样本展示"></a>样本展示</h2><table><thead><tr><th>原图</th><th>对抗样本</th></tr></thead><tbody><tr><td><a href="https://tva4.sinaimg.cn/large/a0732b55ly1gpvz269v29j20dw0dwwfu.jpg" data-fancybox="group" data-caption="0" class="fancybox"><img alt="0" title="0" data-src="https://tva4.sinaimg.cn/large/a0732b55ly1gpvz269v29j20dw0dwwfu.jpg" src="https://tvax2.sinaimg.cn/large/a0732b55ly1gbun1i69ssg209g09gmy4.gif" class="lazyload"></a></td><td><a href="https://tva4.sinaimg.cn/large/a0732b55ly1gpvz3ahqb9j20dw0dwabk.jpg" data-fancybox="group" data-caption="0" class="fancybox"><img alt="0" title="0" data-src="https://tva4.sinaimg.cn/large/a0732b55ly1gpvz3ahqb9j20dw0dwabk.jpg" src="https://tvax2.sinaimg.cn/large/a0732b55ly1gbun1i69ssg209g09gmy4.gif" class="lazyload"></a></td></tr><tr><td><a href="https://tvax2.sinaimg.cn/large/a0732b55ly1gpvz2g3tg2j20dw0dwq3r.jpg" data-fancybox="group" data-caption="9" class="fancybox"><img alt="9" title="9" data-src="https://tvax2.sinaimg.cn/large/a0732b55ly1gpvz2g3tg2j20dw0dwq3r.jpg" src="https://tvax2.sinaimg.cn/large/a0732b55ly1gbun1i69ssg209g09gmy4.gif" class="lazyload"></a></td><td><a href="https://tva1.sinaimg.cn/large/a0732b55ly1gpvz3gisx5j20dw0dwab1.jpg" data-fancybox="group" data-caption="9" class="fancybox"><img alt="9" title="9" data-src="https://tva1.sinaimg.cn/large/a0732b55ly1gpvz3gisx5j20dw0dwab1.jpg" src="https://tvax2.sinaimg.cn/large/a0732b55ly1gbun1i69ssg209g09gmy4.gif" class="lazyload"></a></td></tr><tr><td><a href="https://tvax1.sinaimg.cn/large/a0732b55ly1gpvz33g51nj20dw0dw3yu.jpg" data-fancybox="group" data-caption="19" class="fancybox"><img alt="19" title="19" data-src="https://tvax1.sinaimg.cn/large/a0732b55ly1gpvz33g51nj20dw0dw3yu.jpg" src="https://tvax2.sinaimg.cn/large/a0732b55ly1gbun1i69ssg209g09gmy4.gif" class="lazyload"></a></td><td><a href="https://tva4.sinaimg.cn/large/a0732b55ly1gpvz3ln2ysj20dw0dw0t5.jpg" data-fancybox="group" data-caption="19" class="fancybox"><img alt="19" title="19" data-src="https://tva4.sinaimg.cn/large/a0732b55ly1gpvz3ln2ysj20dw0dw0t5.jpg" src="https://tvax2.sinaimg.cn/large/a0732b55ly1gbun1i69ssg209g09gmy4.gif" class="lazyload"></a></td></tr></tbody></table><h2 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h2><p>[1]Carlini N, Wagner D. Towards evaluating the robustness of neural networks[C]//2017 ieee symposium on security and privacy (sp). IEEE, 2017: 39-57.</p><p>[2]Xie C, Zhang Z, Zhou Y, et al. Improving transferability of adversarial examples with input diversity[C]//Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. 2019: 2730-2739.</p><p>[3]Heusel M, Ramsauer H, Unterthiner T, et al. Gans trained by a two time-scale update rule converge to a local nash equilibrium[J]. arXiv preprint arXiv:1706.08500, 2017.</p><p>[4]Zhang R, Isola P, Efros A A, et al. The unreasonable effectiveness of deep features as a perceptual metric[C]//Proceedings of the IEEE conference on computer vision and pattern recognition. 2018: 586-595.</p><p>[5]Tan M, Le Q. Efficientnet: Rethinking model scaling for convolutional neural networks[C]//International Conference on Machine Learning. PMLR, 2019: 6105-6114.</p><p>[6]Dosovitskiy A, Beyer L, Kolesnikov A, et al. An image is worth 16x16 words: Transformers for image recognition at scale[J]. arXiv preprint arXiv:2010.11929, 2020.</p><p>[7]Zhang H, Wu C, Zhang Z, et al. Resnest: Split-attention networks[J]. arXiv preprint arXiv:2004.08955, 2020.</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> Adversarial Attack </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> unretricted attack </tag>
+            
+            <tag> tianchi challenge </tag>
+            
+            <tag> frequency domain </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>CVPR2021 安全AI挑战者计划第六期赛道2：ImageNet无限制对抗攻击 TOP 7 比赛思路</title>
       <link href="/Blog/2021/04/25/tianchi2021top7/"/>
       <url>/Blog/2021/04/25/tianchi2021top7/</url>
