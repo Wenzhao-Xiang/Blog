@@ -4,6 +4,35 @@
   
     
     <entry>
+      <title>CVPR2021 安全AI挑战者计划第六期赛道2：ImageNet无限制对抗攻击 TOP 7 比赛思路</title>
+      <link href="/Blog/2021/04/25/tianchi2021top7/"/>
+      <url>/Blog/2021/04/25/tianchi2021top7/</url>
+      
+        <content type="html"><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="/Blog/assets/css/APlayer.min.css"><script src="/Blog/assets/js/APlayer.min.js" class="aplayer-secondary-script-marker"></script><script class="meting-secondary-script-marker" src="/Blog/assets/js/Meting.min.js"></script><!-- # CVPR2021 安全AI挑战者计划第六期赛道2：ImageNet无限制对抗攻击 TOP 7 比赛思路 --><div align="center"><font size="6">CVPR2021 安全AI挑战者计划第六期赛道2：ImageNet无限制对抗攻击 TOP 7 比赛思路</font></div><h2 id="背景介绍"><a href="#背景介绍" class="headerlink" title="背景介绍"></a>背景介绍</h2><p>深度学习在当下许多视觉任务中都取得了卓越的性能，但是深度神经网络很容易遭受输入上微小和不可察觉的干扰导致的误分类（对抗样本）。而事实上，无限制的对抗样本（对图像进行大范围且可见的修改）往往会对深度学习模型的安全性产生更大的威胁，因为其会使得模型误识别的同时不影响人的正常观察。无限制对抗攻击是近两年来对抗领域的一个热门方向，本次比赛意图在纯黑盒模型的模式下对ImageNet上的无限制对抗攻击场景进行进一步的探索，可以进一步提炼并总结无限制攻击的一些创新而有效的方案，在学术上推动对抗攻击领域的发展。</p><h2 id="赛题分析"><a href="#赛题分析" class="headerlink" title="赛题分析"></a>赛题分析</h2><ol><li>比赛攻击形式为无限制攻击，因此可以采取生成、变换、Patch攻击、扰动等各种不同的攻击方法。</li><li>比赛引入了对图像质量的评价标准，在初赛和复赛中采取客观评价指标，主要是由 FID（自然真实程度）、LPIPS（和原图的感知距离） 两个指标来衡量，而决赛中采用主观评价指标，依靠专家直接对图像进行打分来评判。因此靠拟合客观分实际也是没用的。</li><li>比赛为纯黑盒攻击，无法拿到模型的结构信息及梯度信息，同时也无法获得模型对某输入的输出，因此只能依靠提高攻击方法的迁移能力来提高攻击成功率。</li></ol><h2 id="解题思路"><a href="#解题思路" class="headerlink" title="解题思路"></a>解题思路</h2><ol><li>通过尝试我们发现，perturbation的攻击方式反而在攻击成功率与图像质量的综合表现上更加，因此我们的主体方案都是围绕perturbation的攻击方式。为了保证迁移能力，我们主体采用的是DI-MI-FGSM[1]（简称DIM），采用动量因子$\mu=1.0$，输入变换概率$p=0.7$，迭代次数为$n=80$，扰动上限为$\epsilon=16/255$。</li><li>通过对loss的尝试，我们发现，CW loss[2]相较于CE loss，能在不明显损失图像质量的情况下较大幅度提高样本的攻击成功率（白盒+黑盒），其他一些loss（如DLR loss[3]）相较于CW loss无明显提升，因此我们最终采用CW loss。值得一提的是，我们没有将客观指标引入loss，因为过拟合客观指标对于决赛是不利的。</li><li>考虑到黑盒模型中可能包含一些防御模型，我们尝试了Translation-Invariant[4]（简称TI）方法，该方法能较大的提高攻击方法在防御模型上的迁移能力。我们将TI方法与DIM方法结合得到TI-DIM，但在实际测试中，其并没有表现出对迁移能力的提高，有可能是黑盒模型中并没有设置防御模型。同时，TI方法对于noise的滤波会导致perturbation更明显，降低图像质量，因此我们最终没有采用。</li><li>对于$L_p$范数的探讨，从经验而言，$L_2$范数下生成的对抗样本图像质量会略优于$L_\infty$范数。在实际尝试时，感觉两者并无太大的差异，最终还是采用$L_\infty$范数。</li><li>图像预处理部分，首先对图像进行resize时，我们发现双三次插值（Bicubic）相比双线性插值（Bilinear）和最邻近插值（Nearest），效果更好。其次，考虑到比赛可能会对noise类型的攻击进行限制，我们在预处理部分引入了gaussian_blur，并令其参与到梯度更新图之中。</li><li>为了进一步提高模型的迁移能力，我们使用了Model Ensemble方法，通过集成不同模型的logits进行攻击。尝试中发现，集成当前SOTA的大模型（efficientnet、vit等），相比集成更多的小模型效果更好。</li></ol><h2 id="结果总结"><a href="#结果总结" class="headerlink" title="结果总结"></a>结果总结</h2><ul><li>代码分享：<a href="https://github.com/Wenzhao-Xiang/transfer_attack_for_tianchi2021" target="_blank" rel="noopener">https://github.com/Wenzhao-Xiang/transfer_attack_for_tianchi2021</a></li></ul><h2 id="样本展示"><a href="#样本展示" class="headerlink" title="样本展示"></a>样本展示</h2><table><thead><tr><th>原始图像</th><th>对抗样本</th></tr></thead><tbody><tr><td><a href="https://tvax1.sinaimg.cn/large/a0732b55ly1gpvxylvjwhj20dw0dwwfu.jpg" data-fancybox="group" data-caption="0" class="fancybox"><img alt="0" title="0" data-src="https://tvax1.sinaimg.cn/large/a0732b55ly1gpvxylvjwhj20dw0dwwfu.jpg" src="https://tvax2.sinaimg.cn/large/a0732b55ly1gbun1i69ssg209g09gmy4.gif" class="lazyload"></a></td><td><a href="https://tva1.sinaimg.cn/large/a0732b55ly1gpvy02sftwj20dw0dwmyq.jpg" data-fancybox="group" data-caption="0" class="fancybox"><img alt="0" title="0" data-src="https://tva1.sinaimg.cn/large/a0732b55ly1gpvy02sftwj20dw0dwmyq.jpg" src="https://tvax2.sinaimg.cn/large/a0732b55ly1gbun1i69ssg209g09gmy4.gif" class="lazyload"></a></td></tr><tr><td><a href="https://tva3.sinaimg.cn/large/a0732b55ly1gpvxzg2p5ij20dw0dwwev.jpg" data-fancybox="group" data-caption="5" class="fancybox"><img alt="5" title="5" data-src="https://tva3.sinaimg.cn/large/a0732b55ly1gpvxzg2p5ij20dw0dwwev.jpg" src="https://tvax2.sinaimg.cn/large/a0732b55ly1gbun1i69ssg209g09gmy4.gif" class="lazyload"></a></td><td><a href="https://tva4.sinaimg.cn/large/a0732b55ly1gpvy07ytnhj20dw0dw3zf.jpg" data-fancybox="group" data-caption="5" class="fancybox"><img alt="5" title="5" data-src="https://tva4.sinaimg.cn/large/a0732b55ly1gpvy07ytnhj20dw0dw3zf.jpg" src="https://tvax2.sinaimg.cn/large/a0732b55ly1gbun1i69ssg209g09gmy4.gif" class="lazyload"></a></td></tr><tr><td><a href="https://tvax4.sinaimg.cn/large/a0732b55ly1gpvxzrg53fj20dw0dwt9j.jpg" data-fancybox="group" data-caption="26" class="fancybox"><img alt="26" title="26" data-src="https://tvax4.sinaimg.cn/large/a0732b55ly1gpvxzrg53fj20dw0dwt9j.jpg" src="https://tvax2.sinaimg.cn/large/a0732b55ly1gbun1i69ssg209g09gmy4.gif" class="lazyload"></a></td><td><a href="https://tva2.sinaimg.cn/large/a0732b55ly1gpvy0e4temj20dw0dwwfo.jpg" data-fancybox="group" data-caption="26" class="fancybox"><img alt="26" title="26" data-src="https://tva2.sinaimg.cn/large/a0732b55ly1gpvy0e4temj20dw0dwwfo.jpg" src="https://tvax2.sinaimg.cn/large/a0732b55ly1gbun1i69ssg209g09gmy4.gif" class="lazyload"></a></td></tr></tbody></table><h2 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h2><p>[1] Xie, Cihang, et al. “Improving transferability of adversarial examples with input diversity.” Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition. 2019.</p><p>[2] Carlini N ,  Wagner D . Towards Evaluating the Robustness of Neural Networks[J]. IEEE, 2017.</p><p>[3] Croce F, Hein M. Reliable evaluation of adversarial robustness with an ensemble of diverse parameter-free attacks[C]//International Conference on Machine Learning. PMLR, 2020: 2206-2216.</p><p>[4] Dong Y, Pang T, Su H, et al. Evading defenses to transferable adversarial examples by translation-invariant attacks[C]//Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. 2019: 4312-4321.</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> Adversarial Attack </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> unretricted attack </tag>
+            
+            <tag> tianchi challenge </tag>
+            
+            <tag> perturbation-based attack </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>GSoC2019 - Improve the performance of JavaScript version of OpenCV (OpenCV.js)</title>
       <link href="/Blog/2020/02/01/gsoc2019/"/>
       <url>/Blog/2020/02/01/gsoc2019/</url>
