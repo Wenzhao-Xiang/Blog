@@ -141,9 +141,9 @@ function activateLightMode(){
 <p>我们将问题分为两个部分，像素修改方法和攻击区域选择方法。</p>
 <p>首先介绍比较简单的像素修改（纹理优化）的方法。我们使用了比赛方提供的两个白盒模型利用迭代优化的方法对贴图区域内的像素进行优化。总的优化方法有两种：</p>
 <ol>
-<li><p>使用画面中detector检测到的最大置信度作为损失函数，通过梯度反向传递，对patch内像素进行优化。在YOLO中使用最大object confidence，而在faster-rcnn中，使用最大class confidence，因为faster-rcnn的输出中不使用object confidence的信息。</p>
+<li><p>使用画面中detector检测到的最大置信度作为损失函数，通过梯度反向传递，对patch内像素进行优化。在YOLO中使用最大object confidence，而在faster-rcnn中，使用最大class confidence，因为faster-rcnn的输出中不使用object confidence的信息。<br>$$p = arg\min(\max(conf(x+p)))$$</p>
 </li>
-<li><p>使用画面中detector检测到的较高置信度的加和作为损失函数。这种方法相比上一种，训练过程更加稳定，不易出现剧烈抖动，并且能够兼顾高低置信度的bounding box。</p>
+<li><p>使用画面中detector检测到的较高置信度的加和作为损失函数。这种方法相比上一种，训练过程更加稳定，不易出现剧烈抖动，并且能够兼顾高低置信度的bounding box。<br>$$p = arg\min(\sum(topk(conf(x+p))))$$</p>
 </li>
 </ol>
 <p>最后我们选择的损失函数是Yolo的最大置信度和faster-rcnn的较高置信度之和来共同进行优化。</p>
@@ -154,6 +154,9 @@ function activateLightMode(){
 
 <h2 id="在图像左上角设置固定的patch"><a href="#在图像左上角设置固定的patch" class="headerlink" title="在图像左上角设置固定的patch"></a>在图像左上角设置固定的patch</h2><p>基于D-patch论文，我们尝试了攻击区域固定在左上角的攻击方式。为了匹配D-patch的设计方式，我们将损失函数设置为target攻击的损失函数，且target类别为background，希望使得检测器将目光聚焦在背景上而忽略所有的前景物体。但是经过实验发现，D-patch攻击方法并不奏效，可能是我们的代码设置有问题。最后这一方法没有进行线上测试。</p>
 <h2 id="基于目标轮廓的攻击方法"><a href="#基于目标轮廓的攻击方法" class="headerlink" title="基于目标轮廓的攻击方法"></a>基于目标轮廓的攻击方法</h2><p>在前搜索区域的方法中，我们发现我们的攻击方法有时会倾向于选择前景物体与背景相接的区块，这启发了我们对于边缘区域重要性的思考。同时，我们发现patch能够影响的区域越大，攻击也就越有效。之前的思路是patch都是一块一块的，攻击像素的聚集性比较强，那么能不能把patch做的分散一点从而实现更大的影响区域覆盖呢？我们基于这一想法，设计了边缘攻击方法。</p>
+<p>算法1：边缘轮廓攻击区域</p>
+<div class="code-area-wrap"><div class="highlight-tools"><i class="fa fa-angle-down code-expand" aria-hidden="true"></i><div class="code_lang">markdown</div><div class="copy-notice"></div><i class="fa fa-clipboard" aria-hidden="true"></i></div><figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">利用mmdetection预训练的Mask-RCNN对1000张样本进行实例分割，得到一系列物体所对应的mask矩阵及对应的置信度。</span><br><span class="line">对某一样本，将其全部预测进行nms处理，将面积重复超过0.5的mask进行筛选，避免出现过多的重复攻击区域。</span><br><span class="line">将每一物体所对应的mask进行一轮kernel大小3*3的腐蚀，并与原来的mask做差得到边缘轮廓。将这些轮廓依次添加到画布上，直到其总像素数超过5000，得到初步的攻击区域。</span><br><span class="line">对攻击区域进行联通域检测，将其中面积过小的联通域删除，得到最终的边缘轮廓攻击区域。</span><br></pre></td></tr></table></figure></div>
+
 <p>我们首先使用mmdetection中的MaskRCNN(mask_rcnn_r50_fpn_1x_coco_20200205-d4b0c5d6.pth)来获取图像中物体的mask，在边缘上我们通过利用opencv的erode函数，用一个3*3的kernel进行一次迭代，获取了一个足够细的并且联通的边缘，这便是基于边缘攻击的攻击区域。这里我们为了避免出现多个物体重叠过多，导致边缘距离十分接近的情况，对物体的mask区域进行了类似nms的操作，去除了一部分重叠率较高的轮廓线，尽可能减少了位置相近的攻击区域。之后，将每一个物体的预测所得到的轮廓加入patch图中，得到全图的攻击区域。基于这些区域，我们进一步进行纹理优化，最终得分为2898分。这一基于边缘攻击的结果如示意图2，3所示。</p>
 <p align="center"><a href="https://tvax4.sinaimg.cn/large/002WaWKVly1guji7rjt57j60dw0dw46h02.jpg" target="_blank" rel="noopener" data-fancybox="group" data-caption="outline1" class="fancybox"><img alt="outline1" width="500" data-width="500" data-height="500" title="outline1" data-src="https://tvax4.sinaimg.cn/large/002WaWKVly1guji7rjt57j60dw0dw46h02.jpg" src="https://tvax2.sinaimg.cn/large/a0732b55ly1gbun1i69ssg209g09gmy4.gif" class="lazyload"></a> <br> <strong>图2</strong>：边缘轮廓攻击示意图2</p>
 
